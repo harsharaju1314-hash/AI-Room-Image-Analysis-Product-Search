@@ -10,7 +10,7 @@ This guide contains clear, defensible, and realistic answers to key interview qu
 *"I built **AI Room Image Analysis & Product Search**, a focused REST service designed for home design and interior retail workflows. When a user uploads a photo of an interior space—like a living room or bedroom—the system runs a multi-stage pipeline:*
 1. *Validates and sanitizes the uploaded file to ensure format and security integrity.*
 2. *Computes visual complexity and contrast metrics using **scikit-image** and **OpenCV**.*
-3. *Extracts a 512-dimensional visual embedding and classifies the room type using a pretrained **PyTorch ResNet-18** model.*
+3. *Extracts a 512-dimensional visual embedding and classifies the room type using a pretrained **TensorFlow / Keras MobileNetV2** model.*
 4. *Performs vector cosine similarity search against a home-design catalog stored in **PostgreSQL with pgvector** to retrieve the most visually and contextually relevant furniture and fixtures.*
 5. *Persists the analysis audit record and returns structured JSON through **FastAPI**.*
 
@@ -18,13 +18,13 @@ This guide contains clear, defensible, and realistic answers to key interview qu
 
 ---
 
-### 2. Why PyTorch?
-> **"Why did you choose PyTorch over other ML frameworks like TensorFlow or Keras?"**
+### 2. Why TensorFlow & Keras?
+> **"Why did you choose TensorFlow / Keras for the vision model?"**
 
-* **Direct Pythonic Execution & Dynamic Graphs**: PyTorch offers an intuitive, Python-first workflow that makes debugging tensor operations straightforward.
-* **Pretrained Ecosystem**: Torchvision provides battle-tested, lightweight backbones (`ResNet-18`) with standardized preprocessing pipelines (`transforms`).
-* **Hook Mechanism for Embeddings**: PyTorch makes intermediate feature extraction seamless using forward hooks (`model.avgpool.register_forward_hook`), allowing extraction of 512-dim bottleneck representations without rewriting the network topology.
-* **Fast CPU Inference**: For a small-to-medium deployment footprint, PyTorch ResNet-18 runs efficiently in inference mode (`torch.no_grad()`) without requiring heavy GPU infrastructure.
+* **Lightweight & Fast MobileNetV2 Architecture**: TensorFlow Keras provides built-in, highly optimized mobile backbones (`MobileNetV2`) that offer low latency on CPU while maintaining strong feature extraction capabilities.
+* **Functional Sub-Model Extraction**: Keras makes intermediate feature extraction straightforward using functional APIs (`Model(inputs=..., outputs=gap_layer.output)`), allowing clean interception of feature bottleneck representations.
+* **Standardized Preprocessing**: Built-in preprocessing functions (`tf.keras.applications.mobilenet_v2.preprocess_input`) ensure exact consistency with training-time data scaling.
+* **Production Serving Options**: TensorFlow models can easily be serialized into SavedModel/ONNX or served using TensorFlow Serving / TFLite.
 
 ---
 
@@ -42,7 +42,7 @@ This guide contains clear, defensible, and realistic answers to key interview qu
 > **"Why PostgreSQL for storing analysis records and catalog data?"**
 
 * **ACID Compliance & Reliability**: Guarantees transactional consistency for catalog records and analysis logs.
-* **Single Unified Data Store**: Avoids the operational overhead of running a separate vector database (like Milvus or Pinecone) alongside a relational database. PostgreSQL holds both structured relational metadata (prices, room types, categories) and visual embeddings.
+* **Single Unified Data Store**: Avoids the operational overhead of running a separate vector database alongside a relational database. PostgreSQL holds both structured relational metadata (prices, room types, categories) and visual embeddings.
 * **Structured Filtering + Vector Querying**: Allows combined SQL queries that filter by metadata (e.g. `WHERE room_type = 'living_room'`) while computing vector distance in a single pass.
 
 ---
@@ -68,11 +68,11 @@ Each library handles a specific, complementary responsibility in the pipeline:
 ---
 
 ### 7. Why use a Pretrained Model?
-> **"Why use a pretrained ResNet-18 instead of training a CNN from scratch?"**
+> **"Why use a pretrained MobileNetV2 instead of training a CNN from scratch?"**
 
-* **Transfer Learning Efficacy**: Training a deep convolutional network from scratch requires hundreds of thousands of labeled interior images and significant GPU compute.
+* **Transfer Learning Efficacy**: Training a deep convolutional network from scratch requires hundreds of thousands of labeled interior images and significant compute.
 * **Generalizable Low-Level Features**: Pretrained ImageNet weights already contain robust representations for edges, textures, shapes, and object compositions.
-* **Lightweight Footprint**: ResNet-18 provides a small parameter footprint (~11.7M parameters) and low latency (~20–40ms on CPU), making it suitable for responsive API endpoints.
+* **Lightweight Footprint**: MobileNetV2 provides an ultra-lightweight parameter footprint (~3.5M parameters) and low latency (~15–30ms on CPU), making it suitable for responsive API endpoints.
 
 ---
 
@@ -80,7 +80,7 @@ Each library handles a specific, complementary responsibility in the pipeline:
 > **"If traffic increased to thousands of queries per minute, how would you scale this architecture?"**
 
 1. **Decouple Heavy ML Inference**:
-   * Offload the PyTorch inference step to an asynchronous worker pool (e.g., Celery or Redis Queue) or a dedicated model serving runtime (Triton Inference Server / TorchServe).
+   * Offload the TensorFlow inference step to an asynchronous worker pool (e.g., Celery or Redis Queue) or a dedicated model serving runtime (Triton Inference Server / TensorFlow Serving).
 2. **Horizontal API Scaling**:
    * Run stateless FastAPI replicas behind an Application Load Balancer / Nginx.
 3. **Database & Vector Optimization**:
@@ -89,7 +89,7 @@ Each library handles a specific, complementary responsibility in the pipeline:
 4. **Caching Layer**:
    * Cache frequent product recommendation vectors and repeated image hashes in Redis.
 5. **Blob Storage**:
-   * Store uploaded room images in cloud object storage (AWS S3 / Azure Blob Storage) with CDN delivery, saving only URIs in the database.
+   * Store uploaded room images in cloud object storage (Azure Blob Storage / AWS S3) with CDN delivery, saving only URIs in the database.
 
 ---
 
@@ -123,7 +123,7 @@ The Azure DevOps CI pipeline is defined in `azure-pipelines.yml`:
 * **Unit Tests (`test_vision.py`, `test_image_processor.py`)**:
   * Test individual functions in isolation.
   * Verify that the image processor correctly resizes, normalizes, and calculates entropy.
-  * Verify that the PyTorch model outputs a valid 512-dimensional vector with L2 norm $\approx 1.0$ and valid class probabilities.
+  * Verify that the TensorFlow model outputs a valid 512-dimensional vector with L2 norm $\approx 1.0$ and valid class probabilities.
 * **Integration Tests (`test_api.py`, `test_vector_search.py`)**:
   * Test end-to-end request/response cycles using FastAPI `TestClient`.
   * Verify multi-step interactions: Upload $\rightarrow$ Validation $\rightarrow$ Metric Computation $\rightarrow$ Feature Extraction $\rightarrow$ Database Storage $\rightarrow$ Vector Search $\rightarrow$ JSON Response.
@@ -134,7 +134,7 @@ The Azure DevOps CI pipeline is defined in `azure-pipelines.yml`:
 ### 12. What are the limitations of the project?
 > **"What are the current limitations of your implementation?"**
 
-* **Zero-shot Category Mapping**: The room classifier maps ImageNet interior features rather than being fine-tuned on a dedicated interior dataset (such as MIT Places365 or ADE20K).
+* **Zero-shot Category Mapping**: The room classifier maps ImageNet interior features rather than being fine-tuned on a dedicated dataset (such as MIT Places365 or ADE20K).
 * **Single Dominant Room Classification**: Analyzes the image as a single scene rather than segmenting multiple objects/furniture pieces individually (e.g. using YOLO or Mask R-CNN).
 * **Small Sample Catalog**: The vector catalog contains a curated demonstration set of home design products rather than an enterprise-scale inventory.
 * **CPU Inference**: The current setup is optimized for CPU; high-throughput deployments would benefit from batching and GPU acceleration.

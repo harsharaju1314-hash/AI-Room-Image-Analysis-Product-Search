@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     )
     USE_DB_MOCK_FALLBACK: bool = os.getenv("USE_DB_MOCK_FALLBACK", "True").lower() in ("true", "1", "yes")
 
-    # Model & Feature Extraction
-    MODEL_NAME: str = "resnet18"
+    # Model & Feature Extraction (TensorFlow MobileNetV2)
+    MODEL_NAME: str = "mobilenet_v2"
     EMBEDDING_DIM: int = 512
     TOP_K_DEFAULT: int = 3
 

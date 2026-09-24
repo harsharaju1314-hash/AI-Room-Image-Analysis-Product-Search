@@ -1,6 +1,6 @@
 # AI Room Image Analysis & Product Search
 
-A lightweight REST service for interior room classification, visual complexity analysis, and embedding-based product similarity search using PyTorch, OpenCV, scikit-image, FastAPI, and PostgreSQL with pgvector.
+A lightweight REST service for interior room classification, visual complexity analysis, and embedding-based product similarity search using TensorFlow / Keras, OpenCV, scikit-image, FastAPI, and PostgreSQL with pgvector.
 
 ---
 
@@ -11,9 +11,9 @@ In home design, e-commerce, and interior space planning, customers frequently ha
 This project implements a complete computer vision and vector search pipeline:
 1. Ingests and sanitizes user-uploaded interior space photos.
 2. Extracts visual quality and complexity metrics (Shannon entropy and GLCM contrast).
-3. Classifies room type (`living_room`, `bedroom`, `kitchen`, `bathroom`) and generates a 512-dimensional visual embedding using a pretrained PyTorch ResNet-18 model.
-4. Searches a home-design product catalog using vector cosine similarity powered by PostgreSQL and pgvector.
-5. Returns structured JSON analysis results and recommended products through a FastAPI service.
+3. Classifies room type (`living_room`, `bedroom`, `kitchen`, `bathroom`) and generates a 512-dimensional visual embedding using a pretrained **TensorFlow MobileNetV2** model.
+4. Searches a home-design product catalog using vector cosine similarity powered by **PostgreSQL and pgvector**.
+5. Returns structured JSON analysis results and recommended products through a **FastAPI** service.
 
 ---
 
@@ -32,7 +32,7 @@ This service solves three key technical challenges:
 
 * **Multi-Stage Image Ingestion**: Safe file validation using Pillow header verification (`Image.verify()`), size bounding, and format whitelisting.
 * **Visual Metric Extraction**: Computes image dimensions, Shannon entropy (visual detail density), and Gray-Level Co-occurrence Matrix (GLCM) contrast using scikit-image and OpenCV.
-* **PyTorch Feature Extraction**: Uses a pretrained ResNet-18 backbone with intermediate forward hooks to extract L2-normalized 512-dimensional visual embeddings.
+* **TensorFlow Feature Extraction**: Uses a pretrained MobileNetV2 backbone to extract L2-normalized 512-dimensional visual embeddings.
 * **Room Scene Classification**: Evaluates class probabilities across four core interior categories: Living Room, Bedroom, Kitchen, and Bathroom.
 * **Vector Cosine Similarity Search**: Executes nearest-neighbor queries against PostgreSQL with pgvector (using the `<=>` cosine distance operator) with room-type filtering.
 * **Automated Test Suite**: 18 unit and integration tests covering security, model inference, image processing, and API contracts.
@@ -45,7 +45,7 @@ This service solves three key technical challenges:
 | Technology | Purpose |
 | :--- | :--- |
 | **Python 3.12** | Core application programming language |
-| **PyTorch & Torchvision** | Pretrained ResNet-18 backbone for embedding extraction and scene classification |
+| **TensorFlow & Keras** | Pretrained MobileNetV2 backbone for embedding extraction and scene classification |
 | **OpenCV (`cv2`)** | Image matrix resizing (224x224), array formatting, and color space conversion |
 | **Pillow (`PIL`)** | Stream decoding, format verification, and header validation |
 | **scikit-image** | Computation of Shannon entropy and GLCM texture contrast metrics |
@@ -64,27 +64,27 @@ This service solves three key technical challenges:
 User / Client
       │
       ▼  (POST /analyze with image)
-┌─────────────────────────────────────────────────────────┐
-│ FastAPI Application (app/main.py)                       │
-│  ├─ Security Validation (Extension, Size, PIL Verify)   │
-│  ├─ Image Processor (OpenCV resize, scikit-image stats) │
-│  └─ PyTorch ResNet-18 (512-dim embedding & Room Class)  │
-└────────────┬───────────────────────────────┬────────────┘
-             │                               │
-             ▼                               ▼
-┌───────────────────────────┐   ┌──────────────────────────┐
-│ PostgreSQL (pgvector)     │   │ Structured JSON Response │
-│  ├─ room_analyses table   │   │  ├─ Room type & score    │
-│  ├─ products catalog      │   │  ├─ Image metrics        │
-│  └─ Cosine Search (<=>)   │   │  └─ Similar products     │
-└───────────────────────────┘   └──────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│ FastAPI Application (app/main.py)                         │
+│  ├─ Security Validation (Extension, Size, PIL Verify)     │
+│  ├─ Image Processor (OpenCV resize, scikit-image stats)   │
+│  └─ TensorFlow MobileNetV2 (512-dim embedding & Room Class)│
+└────────────┬─────────────────────────────────┬────────────┘
+             │                                 │
+             ▼                                 ▼
+┌───────────────────────────┐   ┌────────────────────────────┐
+│ PostgreSQL (pgvector)     │   │ Structured JSON Response   │
+│  ├─ room_analyses table   │   │  ├─ Room type & score      │
+│  ├─ products catalog      │   │  ├─ Image metrics          │
+│  └─ Cosine Search (<=>)   │   │  └─ Similar products       │
+└───────────────────────────┘   └────────────────────────────┘
 ```
 
 ### Execution Flow:
 1. **Request Ingestion**: Client submits an image file to `POST /analyze`.
 2. **Security & Validation**: File size is capped (5MB max), extension is verified, and Pillow validates binary image integrity.
 3. **Preprocessing & Quality Metrics**: Image is converted to RGB, resized via OpenCV, and analyzed for entropy and GLCM contrast via scikit-image.
-4. **Model Inference**: PyTorch ResNet-18 runs a forward pass; an `avgpool` hook captures the 512-dim L2-normalized embedding, while classification heads determine the room type.
+4. **Model Inference**: TensorFlow MobileNetV2 runs inference; feature extractor extracts the 512-dim L2-normalized embedding, while classification heads determine the room type.
 5. **Vector Search**: PostgreSQL executes a pgvector cosine distance query (`<=>`) to find top-k matching products.
 6. **Persistence & Response**: Analysis metadata is stored in the database, and the JSON payload is returned to the client.
 
@@ -115,7 +115,7 @@ AI-Room-Image-Analysis-Product-Search/
 │       ├── __init__.py
 │       ├── image_processor.py   # Pillow, OpenCV, scikit-image processing
 │       ├── search_service.py    # Vector cosine similarity search
-│       └── vision_model.py      # PyTorch ResNet-18 feature extractor
+│       └── vision_model.py      # TensorFlow MobileNetV2 feature extractor
 ├── data/
 │   └── sample_images/           # Sample room images for testing
 ├── scripts/
@@ -127,7 +127,7 @@ AI-Room-Image-Analysis-Product-Search/
 │   ├── test_api.py              # End-to-end API & security tests
 │   ├── test_image_processor.py  # Image preprocessing & metric unit tests
 │   ├── test_vector_search.py    # Vector similarity ranking unit tests
-│   └── test_vision.py           # PyTorch model & embedding shape tests
+│   └── test_vision.py           # TensorFlow model & embedding shape tests
 ├── azure-pipelines.yml          # Azure DevOps CI workflow
 ├── requirements.txt             # Pinned project dependencies
 ├── INTERVIEW_PREP.md            # Technical interview Q&A reference
@@ -142,10 +142,10 @@ AI-Room-Image-Analysis-Product-Search/
 * **Dataset / Seed Catalog**: Contains curated home design catalog items across 4 interior rooms (Living Room, Bedroom, Kitchen, Bathroom) with product descriptions, prices, and visual vectors.
 * **Image Preprocessing**:
   * Input resized to $(224 \times 224)$ via OpenCV bilinear interpolation.
-  * Normalized with standard ImageNet channel means `[0.485, 0.456, 0.406]` and standard deviations `[0.229, 0.224, 0.225]`.
+  * Normalized with standard MobileNetV2 preprocessing to `[-1.0, 1.0]`.
 * **Feature Extraction**:
-  * Backbone: PyTorch `torchvision.models.resnet18(weights=ResNet18_Weights.DEFAULT)`.
-  * Forward hook captures the 512-dimensional bottleneck representation from `model.avgpool`.
+  * Backbone: TensorFlow `tf.keras.applications.MobileNetV2(weights="imagenet")`.
+  * Intercepts `global_average_pooling2d` representation and projects to a 512-dimensional vector.
   * Feature vectors are L2-normalized: $\|v\|_2 = 1.0$.
 * **Visual Metrics**:
   * **Shannon Entropy**: Measures scene detail density / visual information content.
@@ -263,55 +263,6 @@ pytest --cov=app --cov-report=term-missing
 
 ---
 
-## Sample API Usage
-
-### Analyze a Room Image
-```bash
-curl -X POST "http://localhost:8000/analyze?top_k=3&filter_by_room=true" \
-  -H "accept: application/json" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@data/sample_images/living_room.jpg"
-```
-
-### Sample Response:
-```json
-{
-  "id": 1,
-  "filename": "living_room.jpg",
-  "room_type": "living_room",
-  "confidence": 0.8845,
-  "class_probabilities": {
-    "living_room": 0.8845,
-    "bedroom": 0.0521,
-    "kitchen": 0.0412,
-    "bathroom": 0.0222
-  },
-  "image_metrics": {
-    "width": 640,
-    "height": 480,
-    "channels": 3,
-    "shannon_entropy": 4.1205,
-    "contrast_metric": 182.45
-  },
-  "similar_products": [
-    {
-      "id": 1,
-      "name": "Modern 3-Seater Fabric Sofa",
-      "category": "sofa",
-      "room_type": "living_room",
-      "price": 899.0,
-      "description": "Contemporary minimalist charcoal grey sofa with high-density foam cushions.",
-      "image_url": "/static/products/modern_sofa.jpg",
-      "similarity_score": 0.9124,
-      "created_at": "2026-09-24T12:00:00Z"
-    }
-  ],
-  "created_at": "2026-09-24T12:05:00Z"
-}
-```
-
----
-
 ## Azure DevOps CI Pipeline
 
 The repository includes a pipeline definition (`azure-pipelines.yml`) that runs on every pull request and push to `main`:
@@ -341,8 +292,8 @@ The repository includes a pipeline definition (`azure-pipelines.yml`) that runs 
 
 ## Key Takeaways & What I Learned
 
-* Built an end-to-end computer vision pipeline connecting image preprocessing, deep feature extraction, and vector similarity search.
-* Implemented intermediate layer feature extraction in PyTorch using forward hooks on convolutional neural networks.
+* Built an end-to-end computer vision pipeline connecting image preprocessing, deep feature extraction with TensorFlow/Keras, and vector similarity search.
+* Implemented intermediate feature extraction using TensorFlow Keras functional sub-models.
 * Structured relational metadata and high-dimensional vector embeddings within PostgreSQL using pgvector.
 * Designed defensive API validation for multipart image uploads, guarding against oversized payloads and malformed binaries.
 * Implemented modular unit and integration testing with transactional SQLite fixtures and automated CI execution in Azure DevOps.
